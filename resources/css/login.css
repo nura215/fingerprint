@@ -1,0 +1,122 @@
+.login-brand-bg {
+    background:
+        linear-gradient(90deg, rgba(7, 148, 85, .06), rgba(255, 255, 255, .9)),
+        repeating-linear-gradient(90deg, rgba(7, 148, 85, .035) 0 1px, transparent 1px 92px),
+        #f6fbfa;
+}
+
+.login-brand-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 18% 46%, transparent 0 178px, rgba(7, 148, 85, .06) 179px, transparent 181px),
+        radial-gradient(circle at 18% 46%, transparent 0 242px, rgba(7, 148, 85, .045) 243px, transparent 245px),
+        radial-gradient(circle at 18% 46%, transparent 0 306px, rgba(7, 148, 85, .035) 307px, transparent 309px);
+    pointer-events: none;
+}
+
+.login-brand-bg::after {
+    content: "";
+    position: absolute;
+    top: 8%;
+    right: 14%;
+    width: 118px;
+    height: 120px;
+    opacity: .35;
+    background-image: radial-gradient(rgba(7, 148, 85, .28) 1px, transparent 1px);
+    background-size: 12px 12px;
+}
+
+.floor-shadow {
+    position: absolute;
+    left: 60px;
+    right: 18px;
+    bottom: 5px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(19, 34, 56, .065);
+    filter: blur(8px);
+}
+
+.door {
+    position: absolute;
+    left: 160px;
+    bottom: 14px;
+    width: 136px;
+    height: 236px;
+    border: 1px solid #dce8ec;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(100deg, #f7fbfb, #eaf2f1);
+    box-shadow: inset 12px 0 32px rgba(255, 255, 255, .9), 18px 22px 40px rgba(53, 76, 96, .12);
+}
+
+.door::before {
+    content: "";
+    position: absolute;
+    inset: 15px 17px;
+    border: 1px solid rgba(182, 203, 210, .55);
+    border-radius: 2px;
+}
+
+.door-handle {
+    position: absolute;
+    top: 120px;
+    right: 21px;
+    width: 45px;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #8fa0a7, #d5dde0);
+    box-shadow: 0 1px 1px rgba(19, 34, 56, .18);
+}
+
+.reader {
+    position: absolute;
+    left: 78px;
+    bottom: 105px;
+    width: 68px;
+    height: 108px;
+    border: 6px solid #eef5f4;
+    border-radius: 12px;
+    background: #132238;
+    box-shadow: 0 16px 30px rgba(19, 34, 56, .22);
+    color: #0be381;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reader::before {
+    content: "";
+    position: absolute;
+    top: 20px;
+    width: 27px;
+    height: 4px;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 10px rgba(11, 227, 129, .85);
+}
+
+.shield-card {
+    position: absolute;
+    right: 14px;
+    bottom: 119px;
+    width: 62px;
+    height: 74px;
+    border: 1px solid #dfe9ed;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .86);
+    box-shadow: 0 14px 26px rgba(19, 34, 56, .12);
+    color: #079455;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plant {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100px;
+    height: 160px;
+}
