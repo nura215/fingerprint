@@ -69,9 +69,7 @@
                     'label' => 'Laporan',
                     'icon' => 'chart',
                     'children' => [
-                        ['label' => 'Per Kelas', 'route' => 'admin.reports.classes', 'match' => 'admin.reports.classes'],
-                        ['label' => 'Per Mata Kuliah', 'route' => 'admin.reports.subjects', 'match' => 'admin.reports.subjects'],
-                        ['label' => 'Per Dosen', 'route' => 'admin.reports.lecturers', 'match' => 'admin.reports.lecturers'],
+                        ['label' => 'Kehadiran', 'route' => 'admin.reports.attendance', 'match' => 'admin.reports.attendance*'],
                         ['label' => 'Akses Ditolak', 'route' => 'admin.reports.denied-access', 'match' => 'admin.reports.denied-access'],
                     ],
                 ],
@@ -104,6 +102,71 @@
             default => '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/>',
         };
     };
+
+    $flashAlerts = [];
+
+    if (session('success')) {
+        $flashAlerts[] = [
+            'type' => 'success',
+            'title' => 'Berhasil',
+            'message' => session('success'),
+            'messages' => [],
+        ];
+    }
+
+    if (session('error')) {
+        $flashAlerts[] = [
+            'type' => 'error',
+            'title' => 'Gagal',
+            'message' => session('error'),
+            'messages' => [],
+        ];
+    }
+
+    if (session('status') && ! in_array(session('status'), ['profile-updated', 'password-updated'], true)) {
+        $flashAlerts[] = [
+            'type' => 'info',
+            'title' => 'Informasi',
+            'message' => session('status'),
+            'messages' => [],
+        ];
+    }
+
+    if (session('status') === 'profile-updated') {
+        $flashAlerts[] = [
+            'type' => 'success',
+            'title' => 'Profile Berhasil Disimpan',
+            'message' => 'Data profile Anda sudah diperbarui.',
+            'messages' => [],
+        ];
+    }
+
+    if (session('status') === 'password-updated') {
+        $flashAlerts[] = [
+            'type' => 'success',
+            'title' => 'Password Berhasil Disimpan',
+            'message' => 'Password akun Anda sudah diperbarui.',
+            'messages' => [],
+        ];
+    }
+
+    if (session('import_errors')) {
+        $flashAlerts[] = [
+            'type' => 'error',
+            'title' => 'Import Gagal',
+            'message' => 'Perbaiki data berikut lalu upload ulang file.',
+            'messages' => array_values(session('import_errors')),
+        ];
+    }
+
+    if ($errors->any()) {
+        $flashAlerts[] = [
+            'type' => 'error',
+            'title' => 'Data Belum Valid',
+            'message' => 'Ada isian yang perlu diperbaiki.',
+            'messages' => array_slice($errors->all(), 0, 5),
+        ];
+    }
 @endphp
 
 <!DOCTYPE html>
@@ -124,9 +187,114 @@
     </head>
     <body class="font-sans antialiased">
         <div
-            x-data="{ sidebarOpen: false, profileModalOpen: {{ ($errors->updateProfile->any() || $errors->updatePassword->any() || session('status') === 'profile-updated' || session('status') === 'password-updated') ? 'true' : 'false' }} }"
+            x-data="{ sidebarOpen: false, profileModalOpen: {{ ($errors->updateProfile->any() || $errors->updatePassword->any()) ? 'true' : 'false' }} }"
             class="min-h-screen bg-slate-50 text-slate-900"
         >
+            @if ($flashAlerts !== [])
+                <div
+                    x-data="{
+                        alerts: @js($flashAlerts),
+                        active: 0,
+                        get current() { return this.alerts[this.active] || null },
+                        get isSuccess() { return this.current && this.current.type === 'success' },
+                        get isError() { return this.current && this.current.type === 'error' },
+                        close() { this.alerts.splice(this.active, 1); if (this.active >= this.alerts.length) this.active = Math.max(this.alerts.length - 1, 0) },
+                        next() { if (this.active < this.alerts.length - 1) this.active++ },
+                        previous() { if (this.active > 0) this.active-- }
+                    }"
+                    x-show="current"
+                    x-transition.opacity
+                    class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div
+                        x-show="current"
+                        x-transition
+                        class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/10"
+                        @click.outside="close()"
+                    >
+                        <div class="px-6 pb-5 pt-6">
+                            <div class="flex items-start gap-4">
+                                <div
+                                    class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
+                                    :class="isSuccess ? 'bg-emerald-50 text-emerald-600' : (isError ? 'bg-rose-50 text-rose-600' : 'bg-sky-50 text-sky-600')"
+                                >
+                                    <svg x-show="isSuccess" class="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="m5 13 4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <svg x-show="isError" class="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M12 8v5M12 17h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                        <path d="M10.3 4.3 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                    </svg>
+                                    <svg x-show="!isSuccess && !isError" class="h-7 w-7" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M12 17v-6M12 7h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    <h2 class="text-lg font-extrabold tracking-normal text-slate-950" x-text="current.title"></h2>
+                                    <p class="mt-1 text-sm font-medium leading-6 text-slate-500" x-text="current.message"></p>
+
+                                    <template x-if="current.messages && current.messages.length">
+                                        <ul class="mt-4 max-h-44 space-y-2 overflow-y-auto rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">
+                                            <template x-for="message in current.messages" :key="message">
+                                                <li class="flex gap-2">
+                                                    <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" :class="isError ? 'bg-rose-500' : 'bg-emerald-500'"></span>
+                                                    <span x-text="message"></span>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-base font-extrabold text-slate-600 hover:bg-slate-50"
+                                    @click="close()"
+                                    aria-label="Tutup popup"
+                                >
+                                    x
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+                            <div class="text-xs font-extrabold text-slate-400">
+                                <span x-text="active + 1"></span>/<span x-text="alerts.length"></span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button
+                                    type="button"
+                                    x-show="alerts.length > 1"
+                                    class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-extrabold text-slate-700 hover:bg-white disabled:opacity-40"
+                                    :disabled="active === 0"
+                                    @click="previous()"
+                                >
+                                    Sebelumnya
+                                </button>
+                                <button
+                                    type="button"
+                                    x-show="alerts.length > 1 && active < alerts.length - 1"
+                                    class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-extrabold text-slate-700 hover:bg-white"
+                                    @click="next()"
+                                >
+                                    Lanjut
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-extrabold text-white shadow-sm hover:bg-emerald-700"
+                                    @click="close()"
+                                >
+                                    Mengerti
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <aside
                 class="fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:translate-x-0"
                 :class="{ 'translate-x-0': sidebarOpen }"
@@ -313,10 +481,6 @@
                             @csrf
                             @method('patch')
 
-                            @if (session('status') === 'profile-updated')
-                                <div class="mx-7 mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">Profile berhasil diperbarui.</div>
-                            @endif
-
                             <div class="grid gap-6 px-7 py-6 lg:grid-cols-2">
                                 <div class="space-y-5">
                                     <div>
@@ -394,12 +558,6 @@
                 </div>
 
                 <main class="p-4 sm:p-6">
-                    @if (session('success') || session('error'))
-                        <div class="mb-5 rounded-lg border px-4 py-3 text-sm font-semibold {{ session('success') ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700' }}">
-                            {{ session('success') ?? session('error') }}
-                        </div>
-                    @endif
-
                     {{ $slot }}
                 </main>
             </div>

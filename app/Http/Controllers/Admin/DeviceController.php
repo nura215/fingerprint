@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Device;
 use App\Models\Room;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class DeviceController extends BaseCrudController
 {
@@ -52,6 +55,35 @@ class DeviceController extends BaseCrudController
     ];
 
     protected array $searchColumns = ['device_code', 'name', 'model', 'ip_address', 'status'];
+
+    public function index(Request $request): View
+    {
+        $perPage = $request->integer('per_page') ?: 10;
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $items = Device::query()
+            ->with('room')
+            ->withCount('biometricEnrollments')
+            ->when($request->filled('search'), fn (Builder $query) => $this->applySearch($query, $request->string('search')->toString()))
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->input('status')))
+            ->when($request->filled('room_id'), fn (Builder $query) => $query->where('room_id', $request->integer('room_id')))
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.aktivitas.fingerprint.perangkat', [
+            'items' => $items,
+            'routePrefix' => $this->routePrefix,
+            'rooms' => Room::orderBy('name')->get(),
+            'stats' => [
+                'total' => Device::count(),
+                'online' => Device::where('status', 'online')->count(),
+                'offline' => Device::where('status', 'offline')->count(),
+                'maintenance' => Device::where('status', 'maintenance')->count(),
+            ],
+            'perPage' => $perPage,
+        ]);
+    }
 
     protected function rules(?Model $item = null): array
     {

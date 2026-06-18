@@ -5,17 +5,6 @@
             <p class="mt-1 text-sm font-medium text-slate-500">{{ $description }}</p>
         </div>
 
-        @if (session('import_errors'))
-            <div class="rounded-xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-                <div class="font-extrabold">Import gagal. Perbaiki data berikut:</div>
-                <ul class="mt-3 list-disc space-y-1 pl-5">
-                    @foreach (session('import_errors') as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
         <form method="POST" action="{{ $storeRoute }}" enctype="multipart/form-data" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             @csrf
 

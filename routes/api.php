@@ -5,6 +5,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('device.token')->group(function () {
     Route::post('/device/status', [DeviceApiController::class, 'status']);
+    Route::get('/device/users/pending-sync', [DeviceApiController::class, 'pendingUsers']);
+    Route::post('/device/users/{biometricEnrollment}/sync-result', [DeviceApiController::class, 'syncResult']);
+    Route::post('/device/users/enrolled', [DeviceApiController::class, 'enrolledUser']);
     Route::post('/device/scan', [DeviceApiController::class, 'scan']);
     Route::post('/device/door-log', [DeviceApiController::class, 'doorLog']);
 });

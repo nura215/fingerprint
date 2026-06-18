@@ -17,6 +17,18 @@ class ManualUnlockController extends Controller
     {
         return view('admin.aktivitas.akses-pintu.buka-manual', [
             'devices' => Device::query()->with('room')->orderBy('name')->get(),
+            'recentLogs' => DoorAccessLog::query()
+                ->with(['device', 'room', 'user'])
+                ->where('method', 'manual_web')
+                ->latest('access_time')
+                ->limit(5)
+                ->get(),
+            'stats' => [
+                'devices' => Device::count(),
+                'online' => Device::where('status', 'online')->count(),
+                'manual_today' => DoorAccessLog::where('method', 'manual_web')->whereDate('access_time', today())->count(),
+                'granted_today' => DoorAccessLog::where('access_status', 'granted')->whereDate('access_time', today())->count(),
+            ],
         ]);
     }
 

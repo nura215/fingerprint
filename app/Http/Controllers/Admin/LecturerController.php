@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\BiometricEnrollment;
 use App\Models\Lecturer;
+use App\Services\BiometricEnrollmentSyncer;
+use App\Services\FingerprintIdGenerator;
 use App\Services\SpreadsheetImportReader;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +24,8 @@ class LecturerController extends BaseCrudController
     protected string $title = 'Dosen';
 
     protected string $description = 'Kelola data dosen dan Fingerprint ID.';
+
+    protected array $with = ['biometricEnrollment'];
 
     protected array $columns = [
         ['label' => 'NIDN', 'key' => 'nidn'],
@@ -52,8 +57,12 @@ class LecturerController extends BaseCrudController
                 match ($request->string('status')->toString()) {
                     'active' => $query->where('status', 'active'),
                     'inactive' => $query->where('status', 'inactive'),
-                    'enrolled' => $query->whereNotNull('fingerprint_id'),
-                    'not_enrolled' => $query->whereNull('fingerprint_id'),
+                    'enrolled' => $query->whereHas('biometricEnrollment', fn (Builder $nested) => $nested->where('status', 'enrolled')),
+                    'not_enrolled' => $query->where('status', 'active')->where(function (Builder $nested) {
+                        $nested
+                            ->whereDoesntHave('biometricEnrollment')
+                            ->orWhereHas('biometricEnrollment', fn (Builder $enrollment) => $enrollment->where('status', 'not_enrolled'));
+                    }),
                     default => null,
                 };
             })
@@ -63,8 +72,14 @@ class LecturerController extends BaseCrudController
 
         $total = Lecturer::count();
         $active = Lecturer::where('status', 'active')->count();
-        $enrolled = Lecturer::whereNotNull('fingerprint_id')->count();
-        $notEnrolled = Lecturer::whereNull('fingerprint_id')->count();
+        $enrolled = BiometricEnrollment::where('user_type', 'lecturer')->where('status', 'enrolled')->count();
+        $notEnrolled = Lecturer::where('status', 'active')
+            ->where(function (Builder $query) {
+                $query
+                    ->whereDoesntHave('biometricEnrollment')
+                    ->orWhereHas('biometricEnrollment', fn (Builder $enrollment) => $enrollment->where('status', 'not_enrolled'));
+            })
+            ->count();
 
         return view('admin.master-data.dosen.daftar', [
             'items' => $items,
@@ -120,7 +135,7 @@ class LecturerController extends BaseCrudController
                 'name' => $row['nama'] ?? $row['name'] ?? null,
                 'email' => $row['email'] ?? null,
                 'phone' => $row['telepon'] ?? $row['phone'] ?? null,
-                'fingerprint_id' => $row['fingerprint_id'] ?? null,
+                'fingerprint_id' => filled($row['fingerprint_id'] ?? null) ? $row['fingerprint_id'] : null,
                 'status' => $this->normalizeImportStatus($row['status'] ?? null),
             ];
 
@@ -156,7 +171,12 @@ class LecturerController extends BaseCrudController
 
                 $fingerprintUsed = Lecturer::where('fingerprint_id', $data['fingerprint_id'])
                     ->when($lecturer, fn ($query) => $query->whereKeyNot($lecturer->id))
-                    ->exists();
+                    ->exists()
+                    || BiometricEnrollment::where('fingerprint_id', $data['fingerprint_id'])
+                        ->when($lecturer, fn ($query) => $query->where(function (Builder $nested) use ($lecturer) {
+                            $nested->where('user_type', '!=', 'lecturer')->orWhere('user_id', '!=', $lecturer->id);
+                        }))
+                        ->exists();
 
                 if ($fingerprintUsed) {
                     $errors[] = 'Baris '.$line.': Fingerprint ID sudah dipakai dosen lain.';
@@ -173,16 +193,22 @@ class LecturerController extends BaseCrudController
 
         DB::transaction(function () use ($prepared) {
             foreach ($prepared as $data) {
-                Lecturer::updateOrCreate(
+                $existingLecturer = Lecturer::where('nidn', $data['nidn'])->first();
+
+                $lecturer = Lecturer::updateOrCreate(
                     ['nidn' => $data['nidn']],
                     [
                         'name' => $data['name'],
                         'email' => filled($data['email']) ? $data['email'] : null,
                         'phone' => filled($data['phone']) ? $data['phone'] : null,
-                        'fingerprint_id' => filled($data['fingerprint_id']) ? $data['fingerprint_id'] : null,
+                        'fingerprint_id' => filled($data['fingerprint_id'])
+                            ? $data['fingerprint_id']
+                            : ($existingLecturer?->fingerprint_id ?: app(FingerprintIdGenerator::class)->generate()),
                         'status' => $data['status'],
                     ]
                 );
+
+                app(BiometricEnrollmentSyncer::class)->syncLecturer($lecturer);
             }
         });
 
@@ -193,31 +219,66 @@ class LecturerController extends BaseCrudController
     {
         return response()->streamDownload(function () {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['nidn', 'nama', 'email', 'telepon', 'fingerprint_id', 'status']);
-            fputcsv($handle, ['197812312005011002', 'Dr. Budi Santoso', 'budi@example.com', '081234567890', 'FP-000102', 'active']);
+            fputcsv($handle, ['nidn', 'nama', 'email', 'telepon']);
+            fputcsv($handle, ['197812312005011002', 'Dr. Budi Santoso', 'budi@example.com', '081234567890']);
             fclose($handle);
         }, 'template_import_dosen.csv', ['Content-Type' => 'text/csv']);
     }
 
     protected array $formFields = [
-        ['name' => 'nidn', 'label' => 'NIDN', 'type' => 'text'],
+        ['name' => 'nidn', 'label' => 'NIDN', 'type' => 'text', 'required' => true],
         ['name' => 'name', 'label' => 'Nama', 'type' => 'text', 'required' => true],
         ['name' => 'email', 'label' => 'Email', 'type' => 'email'],
         ['name' => 'phone', 'label' => 'Telepon', 'type' => 'text'],
-        ['name' => 'fingerprint_id', 'label' => 'Fingerprint ID', 'type' => 'text'],
+        ['name' => 'fingerprint_id', 'label' => 'Fingerprint ID', 'type' => 'text', 'help' => 'Kosongkan untuk dibuat otomatis. Salin ID ini ke User ID saat enroll di alat.'],
         ['name' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => ['active' => 'Active', 'inactive' => 'Inactive']],
     ];
+
+    protected function formFieldsForContext(bool $creating): array
+    {
+        $fields = parent::formFieldsForContext($creating);
+
+        if (! $creating) {
+            return $fields;
+        }
+
+        return array_values(array_filter(
+            $fields,
+            fn (array $field) => ($field['name'] ?? '') !== 'fingerprint_id'
+        ));
+    }
 
     protected function rules(?Model $item = null): array
     {
         return [
-            'nidn' => ['nullable', 'string', 'max:50', $this->uniqueRule('lecturers', 'nidn', $item)],
+            'nidn' => ['required', 'string', 'max:50', $this->uniqueRule('lecturers', 'nidn', $item)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'fingerprint_id' => ['nullable', 'string', 'max:100', $this->uniqueRule('lecturers', 'fingerprint_id', $item)],
+            'fingerprint_id' => ['nullable', 'string', 'max:100', $this->uniqueRule('lecturers', 'fingerprint_id', $item), $this->uniqueFingerprintEnrollmentRule($item)],
             'status' => ['required', 'in:active,inactive'],
         ];
+    }
+
+    protected function prepareData(array $data, bool $creating): array
+    {
+        $data = parent::prepareData($data, $creating);
+
+        if (blank($data['fingerprint_id'] ?? null)) {
+            $data['fingerprint_id'] = app(FingerprintIdGenerator::class)->generate();
+        }
+
+        return $data;
+    }
+
+    protected function afterStore(Model $item): void
+    {
+        app(BiometricEnrollmentSyncer::class)->syncLecturer($item);
+    }
+
+    protected function afterUpdate(Model $item): void
+    {
+        app(BiometricEnrollmentSyncer::class)->syncLecturer($item);
     }
 
     private function normalizeImportStatus(?string $status): string
@@ -226,6 +287,26 @@ class LecturerController extends BaseCrudController
             '', 'aktif', 'active' => 'active',
             'tidak aktif', 'nonaktif', 'inactive' => 'inactive',
             default => strtolower(trim((string) $status)),
+        };
+    }
+
+    private function uniqueFingerprintEnrollmentRule(?Model $item): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($item) {
+            if (blank($value)) {
+                return;
+            }
+
+            $exists = BiometricEnrollment::query()
+                ->where('fingerprint_id', $value)
+                ->when($item, fn ($query) => $query->where(function (Builder $nested) use ($item) {
+                    $nested->where('user_type', '!=', 'lecturer')->orWhere('user_id', '!=', $item->getKey());
+                }))
+                ->exists();
+
+            if ($exists) {
+                $fail('Fingerprint ID sudah dipakai data enrollment lain.');
+            }
         };
     }
 }

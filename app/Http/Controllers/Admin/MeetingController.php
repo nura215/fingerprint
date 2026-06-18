@@ -7,17 +7,54 @@ use App\Models\DoorAccessLog;
 use App\Models\FingerprintScanLog;
 use App\Models\ScheduleMeeting;
 use App\Models\Student;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MeetingController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $perPage = in_array((int) $request->input('per_page', 10), [10, 25, 50, 100], true)
+            ? (int) $request->input('per_page', 10)
+            : 10;
+
+        $query = ScheduleMeeting::query()
+            ->with(['schedule.class', 'schedule.subject', 'schedule.room', 'schedule.lecturer'])
+            ->withCount([
+                'attendances as student_attendances_count' => fn (Builder $query) => $query->where('user_type', 'student'),
+                'attendances as valid_attendances_count' => fn (Builder $query) => $query->where('validation_status', 'valid'),
+            ])
+            ->when($request->filled('search'), function (Builder $query) use ($request) {
+                $search = $request->string('search')->toString();
+
+                $query->where(function (Builder $query) use ($search) {
+                    $query
+                        ->where('meeting_number', 'like', "%{$search}%")
+                        ->orWhereHas('schedule.subject', fn (Builder $nested) => $nested->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                        ->orWhereHas('schedule.class', fn (Builder $nested) => $nested->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                        ->orWhereHas('schedule.lecturer', fn (Builder $nested) => $nested->where('name', 'like', "%{$search}%")->orWhere('nidn', 'like', "%{$search}%"))
+                        ->orWhereHas('schedule.room', fn (Builder $nested) => $nested->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+                });
+            })
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->input('status')))
+            ->when($request->filled('date'), fn (Builder $query) => $query->whereDate('meeting_date', $request->date('date')));
+
+        $stats = [
+            'total' => ScheduleMeeting::count(),
+            'today' => ScheduleMeeting::whereDate('meeting_date', today())->count(),
+            'ongoing' => ScheduleMeeting::where('status', 'ongoing')->count(),
+            'finished' => ScheduleMeeting::where('status', 'finished')->count(),
+        ];
+
         return view('admin.aktivitas.absensi.daftar', [
-            'meetings' => ScheduleMeeting::query()
-                ->with(['schedule.class', 'schedule.Subject', 'schedule.Room', 'schedule.Lecturer'])
+            'meetings' => $query
                 ->latest('meeting_date')
-                ->paginate(15),
+                ->latest('id')
+                ->paginate($perPage)
+                ->withQueryString(),
+            'perPage' => $perPage,
+            'stats' => $stats,
         ]);
     }
 

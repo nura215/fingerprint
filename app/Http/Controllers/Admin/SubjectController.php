@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\Department;
 use App\Models\Subject;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class SubjectController extends BaseCrudController
 {
@@ -36,6 +39,36 @@ class SubjectController extends BaseCrudController
     ];
 
     protected array $searchColumns = ['code', 'name'];
+
+    public function index(Request $request): View
+    {
+        $perPage = $request->integer('per_page') ?: 10;
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $items = $this->baseQuery()
+            ->withCount('schedules')
+            ->when($request->filled('search'), fn (Builder $query) => $this->applySearch($query, $request->string('search')->toString()))
+            ->when($request->filled('department_id'), fn (Builder $query) => $query->where('department_id', $request->integer('department_id')))
+            ->when($request->filled('semester'), fn (Builder $query) => $query->where('semester', $request->integer('semester')))
+            ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->input('status')))
+            ->orderBy('name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.master-data.mata-kuliah.daftar', [
+            'items' => $items,
+            'routePrefix' => $this->routePrefix,
+            'departments' => Department::orderBy('name')->get(),
+            'semesters' => Subject::whereNotNull('semester')->distinct()->orderBy('semester')->pluck('semester'),
+            'stats' => [
+                'total' => Subject::count(),
+                'active' => Subject::where('status', 'active')->count(),
+                'sks' => Subject::sum('sks'),
+                'scheduled' => Subject::has('schedules')->count(),
+            ],
+            'perPage' => $perPage,
+        ]);
+    }
 
     protected function resolvedFormFields(): array
     {

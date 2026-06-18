@@ -83,7 +83,7 @@ abstract class BaseCrudController extends Controller
             'title' => 'Tambah '.$this->title,
             'sectionTitle' => $this->sectionTitle,
             'routePrefix' => $this->routePrefix,
-            'fields' => $this->resolvedFormFields(),
+            'fields' => $this->formFieldsForContext(true),
             'method' => 'POST',
             'action' => route($this->routePrefix.'.store'),
         ]);
@@ -91,9 +91,11 @@ abstract class BaseCrudController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge($this->createDefaults());
         $validated = $request->validate($this->rules());
         $item = $this->modelClass::create($this->prepareData($validated, true));
         AuditLogger::log('create', $item, null, $item->fresh()?->toArray());
+        $this->afterStore($item);
 
         return redirect()
             ->route($this->routePrefix.'.index')
@@ -121,7 +123,7 @@ abstract class BaseCrudController extends Controller
             'title' => 'Edit '.$this->title,
             'sectionTitle' => $this->sectionTitle,
             'routePrefix' => $this->routePrefix,
-            'fields' => $this->resolvedFormFields(),
+            'fields' => $this->formFieldsForContext(false),
             'method' => 'PUT',
             'action' => route($this->routePrefix.'.update', $item),
         ]);
@@ -134,6 +136,7 @@ abstract class BaseCrudController extends Controller
         $oldData = $item->getOriginal();
         $item->update($this->prepareData($validated, false));
         AuditLogger::log('update', $item, $oldData, $item->fresh()?->toArray());
+        $this->afterUpdate($item);
 
         return redirect()
             ->route($this->routePrefix.'.index')
@@ -203,6 +206,43 @@ abstract class BaseCrudController extends Controller
         return $this->formFields;
     }
 
+    protected function formFieldsForContext(bool $creating): array
+    {
+        $fields = $this->resolvedFormFields();
+
+        if (! $creating) {
+            return $fields;
+        }
+
+        $hiddenOnCreate = array_keys($this->createDefaults());
+
+        return array_values(array_filter(
+            $fields,
+            fn (array $field) => ! in_array($field['name'] ?? '', $hiddenOnCreate, true)
+        ));
+    }
+
+    protected function createDefaults(): array
+    {
+        $model = new $this->modelClass;
+        $fillable = $model->getFillable();
+        $defaults = [];
+
+        if (in_array('status', $fillable, true)) {
+            $defaults['status'] = match (true) {
+                array_key_exists('not_enrolled', $this->filterOptions) => 'not_enrolled',
+                array_key_exists('offline', $this->filterOptions) => 'offline',
+                default => 'active',
+            };
+        }
+
+        if (in_array('is_active', $fillable, true)) {
+            $defaults['is_active'] = true;
+        }
+
+        return $defaults;
+    }
+
     protected function prepareData(array $data, bool $creating): array
     {
         if (array_key_exists('password', $data)) {
@@ -227,6 +267,14 @@ abstract class BaseCrudController extends Controller
         $rule = Rule::unique($table, $column);
 
         return $item ? $rule->ignore($item->getKey()) : $rule;
+    }
+
+    protected function afterStore(Model $item): void
+    {
+    }
+
+    protected function afterUpdate(Model $item): void
+    {
     }
 }
 

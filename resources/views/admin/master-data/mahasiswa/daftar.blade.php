@@ -139,14 +139,14 @@
                     <tbody class="divide-y divide-slate-100 bg-white">
                         @forelse ($items as $item)
                             @php
-                                $status = $item->status === 'inactive' ? 'inactive' : (filled($item->fingerprint_id) ? 'active' : 'not_enrolled');
+                                $status = $item->fingerprint_status;
                                 $statusClasses = match ($status) {
-                                    'active' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                                    'enrolled' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
                                     'not_enrolled' => 'bg-amber-50 text-amber-700 ring-amber-200',
                                     default => 'bg-rose-50 text-rose-700 ring-rose-200',
                                 };
                                 $statusLabel = match ($status) {
-                                    'active' => 'Aktif',
+                                    'enrolled' => 'Sudah Fingerprint',
                                     'not_enrolled' => 'Belum Fingerprint',
                                     default => 'Tidak Aktif',
                                 };

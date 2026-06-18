@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\AcademicYear;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class AcademicYearController extends BaseCrudController
 {
@@ -41,6 +44,34 @@ class AcademicYearController extends BaseCrudController
     ];
 
     protected array $searchColumns = ['year', 'semester'];
+
+    public function index(Request $request): View
+    {
+        $perPage = $request->integer('per_page') ?: 10;
+        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+
+        $items = AcademicYear::query()
+            ->withCount(['classes', 'schedules'])
+            ->when($request->filled('search'), fn (Builder $query) => $this->applySearch($query, $request->string('search')->toString()))
+            ->when($request->filled('semester'), fn (Builder $query) => $query->where('semester', $request->input('semester')))
+            ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
+            ->orderByDesc('year')
+            ->orderBy('semester')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return view('admin.master-data.tahun-akademik.daftar', [
+            'items' => $items,
+            'routePrefix' => $this->routePrefix,
+            'stats' => [
+                'total' => AcademicYear::count(),
+                'active' => AcademicYear::where('is_active', true)->count(),
+                'classes' => AcademicYear::withCount('classes')->get()->sum('classes_count'),
+                'schedules' => AcademicYear::withCount('schedules')->get()->sum('schedules_count'),
+            ],
+            'perPage' => $perPage,
+        ]);
+    }
 
     protected array $formFields = [
         ['name' => 'year', 'label' => 'Tahun Akademik', 'type' => 'text', 'required' => true, 'placeholder' => '2026/2027'],

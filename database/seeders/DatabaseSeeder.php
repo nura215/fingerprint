@@ -151,7 +151,7 @@ class DatabaseSeeder extends Seeder
         DB::table('system_settings')->updateOrInsert([
             'key' => 'allow_student_open_door',
         ], [
-            'value' => 'false',
+            'value' => 'true',
             'description' => 'Jika true, students valid dapat membuka pintu setelah lecturers hadir.',
             'created_at' => now(),
             'updated_at' => now(),
