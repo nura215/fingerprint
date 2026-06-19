@@ -45,6 +45,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
         Route::resource('schedules', ScheduleController::class);
         Route::resource('devices', DeviceController::class);
         Route::post('biometric-enrollments/sync-all', [BiometricEnrollmentController::class, 'requestSyncAll'])->name('biometric-enrollments.sync-all');
+        Route::post('biometric-enrollments/pull-logs', [BiometricEnrollmentController::class, 'pullLogs'])->name('biometric-enrollments.pull-logs');
         Route::post('biometric-enrollments/{biometric_enrollment}/sync', [BiometricEnrollmentController::class, 'requestSync'])->name('biometric-enrollments.sync');
         Route::resource('biometric-enrollments', BiometricEnrollmentController::class);
         Route::get('meetings', [MeetingController::class, 'index'])->name('meetings.index');

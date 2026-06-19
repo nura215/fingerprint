@@ -57,7 +57,10 @@
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-extrabold text-emerald-700">{{ $item->device_code }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-800">{{ $item->name }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-600">{{ $item->model }}</td>
-                                <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-600">{{ $item->ip_address ?: '-' }}{{ $item->port ? ':'.$item->port : '' }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-600">
+                                    <div>{{ $item->ip_address ?: '-' }}{{ $item->port ? ':'.$item->port : '' }}</div>
+                                    <div class="text-xs text-slate-400">Comm Key: {{ $item->comm_key ?: '0' }}</div>
+                                </td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-medium text-slate-600">{{ $item->room?->name ?? '-' }}</td>
                                 <td class="whitespace-nowrap px-5 py-4">@include('admin.partials.lencana', ['value' => $item->status])</td>
                                 <td class="whitespace-nowrap px-5 py-4">@include('admin.partials.table-actions', ['routePrefix' => $routePrefix, 'item' => $item, 'deleteLabel' => 'perangkat'])</td>

@@ -7,6 +7,7 @@ use App\Models\Device;
 use App\Models\Lecturer;
 use App\Models\Student;
 use App\Services\AuditLogger;
+use App\Services\SolutionDeviceIntegrator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -87,27 +88,42 @@ class BiometricEnrollmentController extends BaseCrudController
 
     public function requestSync(BiometricEnrollment $biometricEnrollment): RedirectResponse
     {
-        $this->markPendingSync($biometricEnrollment, 'Menunggu dikirim ulang ke perangkat.');
-        AuditLogger::log('request_device_user_sync', $biometricEnrollment, null, $biometricEnrollment->toArray());
+        $result = app(SolutionDeviceIntegrator::class)->syncEnrollment($biometricEnrollment->load(['device', 'student', 'lecturer']));
+        AuditLogger::log('sync_device_user_now', $biometricEnrollment, null, $result);
 
         return redirect()
             ->route($this->routePrefix.'.index')
-            ->with('success', 'Data user masuk antrean sinkron ke alat.');
+            ->with($result['success'] > 0 ? 'success' : 'error', $result['success'] > 0
+                ? 'Data user berhasil dikirim ke alat.'
+                : 'Data user gagal dikirim ke alat: '.$result['message']);
     }
 
     public function requestSyncAll(): RedirectResponse
     {
-        $count = BiometricEnrollment::query()->update([
+        BiometricEnrollment::query()->update([
             'sync_status' => 'pending',
             'sync_requested_at' => now(),
             'sync_message' => 'Menunggu dikirim ke perangkat.',
         ]);
 
-        AuditLogger::log('request_all_device_user_sync', null, null, ['count' => $count]);
+        $summary = app(SolutionDeviceIntegrator::class)->syncPending();
+
+        AuditLogger::log('sync_all_device_users_now', null, null, $summary);
 
         return redirect()
             ->route($this->routePrefix.'.index')
-            ->with('success', "{$count} data user masuk antrean sinkron ke alat.");
+            ->with($summary['failed'] === 0 ? 'success' : 'error', "Sync selesai. Berhasil: {$summary['success']}, gagal: {$summary['failed']}.");
+    }
+
+    public function pullLogs(): RedirectResponse
+    {
+        $summary = app(SolutionDeviceIntegrator::class)->pullLogs();
+
+        AuditLogger::log('pull_solution_device_logs', null, null, $summary);
+
+        return redirect()
+            ->route($this->routePrefix.'.index')
+            ->with($summary['failed'] === 0 ? 'success' : 'error', "Tarik log selesai. Diproses: {$summary['processed']}, duplikat: {$summary['ignored']}, gagal: {$summary['failed']}.");
     }
 
     protected function rules(?Model $item = null): array

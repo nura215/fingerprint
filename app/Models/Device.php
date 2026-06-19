@@ -11,7 +11,7 @@ class Device extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['device_code', 'name', 'model', 'ip_address', 'port', 'room_id', 'connection_type', 'status', 'last_online_at'];
+    protected $fillable = ['device_code', 'name', 'model', 'ip_address', 'port', 'comm_key', 'room_id', 'connection_type', 'status', 'last_online_at'];
 
     protected function casts(): array { return ['last_online_at' => 'datetime']; }
 

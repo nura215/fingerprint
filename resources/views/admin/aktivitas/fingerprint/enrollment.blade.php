@@ -14,7 +14,7 @@
 
         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-100 p-5">
-                <form method="GET" class="grid gap-2 lg:grid-cols-2 xl:grid-cols-[minmax(180px,1fr)_132px_166px_148px_148px_92px_112px] xl:items-center">
+                <form method="GET" class="grid gap-2 lg:grid-cols-2 xl:grid-cols-[minmax(170px,1fr)_122px_150px_138px_132px_84px_104px_96px] xl:items-center">
                     <label class="relative">
                         <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none"><path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                         <input type="search" name="search" value="{{ request('search') }}" placeholder="Cari user / fingerprint" class="h-10 w-full rounded-lg border-slate-200 pl-10 text-xs font-semibold text-slate-700 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/10">
@@ -44,8 +44,12 @@
                     </select>
                     <button type="submit" class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-200 px-3 text-xs font-extrabold text-slate-700 hover:bg-slate-50">Filter</button>
                     <button type="submit" form="sync-all-form" class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-emerald-200 px-3 text-xs font-extrabold text-emerald-700 hover:bg-emerald-50">Sync Semua</button>
+                    <button type="submit" form="pull-logs-form" class="inline-flex h-10 w-full items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700">Tarik Log</button>
                 </form>
                 <form id="sync-all-form" method="POST" action="{{ route($routePrefix.'.sync-all') }}" onsubmit="return confirm('Kirim semua data enrollment ke antrean sinkron?')">
+                    @csrf
+                </form>
+                <form id="pull-logs-form" method="POST" action="{{ route($routePrefix.'.pull-logs') }}" onsubmit="return confirm('Tarik log scan dari semua perangkat?')">
                     @csrf
                 </form>
             </div>
