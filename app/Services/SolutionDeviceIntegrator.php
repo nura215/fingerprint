@@ -115,10 +115,11 @@ class SolutionDeviceIntegrator
     private function processPulledLog(Device $device, array $row): string
     {
         $scanAt = Carbon::parse($row['scan_time']);
+        $fingerprintId = $this->resolveFingerprintId($row['fingerprint_id']);
 
         $exists = FingerprintScanLog::query()
             ->where('device_id', $device->id)
-            ->where('fingerprint_id', $row['fingerprint_id'])
+            ->where('fingerprint_id', $fingerprintId)
             ->where('scan_time', $scanAt)
             ->exists();
 
@@ -127,9 +128,9 @@ class SolutionDeviceIntegrator
         }
 
         try {
-            DB::transaction(function () use ($device, $row, $scanAt) {
+            DB::transaction(function () use ($device, $row, $scanAt, $fingerprintId) {
                 $enrollment = BiometricEnrollment::query()
-                    ->where('fingerprint_id', $row['fingerprint_id'])
+                    ->where('fingerprint_id', $fingerprintId)
                     ->first();
 
                 if ($enrollment && $enrollment->status !== 'enrolled') {
@@ -145,10 +146,11 @@ class SolutionDeviceIntegrator
 
                 $this->attendanceValidation->validateScan(
                     $device->device_code,
-                    $row['fingerprint_id'],
+                    $fingerprintId,
                     $scanAt,
                     [
                         'source' => 'solution_web_sdk',
+                        'device_pin' => $row['fingerprint_id'],
                         'verified' => $row['verified'],
                         'status' => $row['status'],
                         'raw' => $row['raw'],
@@ -160,7 +162,7 @@ class SolutionDeviceIntegrator
         } catch (Throwable $exception) {
             FingerprintScanLog::query()->create([
                 'device_id' => $device->id,
-                'fingerprint_id' => $row['fingerprint_id'],
+                'fingerprint_id' => $fingerprintId,
                 'scan_time' => $scanAt,
                 'raw_payload' => $row,
                 'process_status' => 'failed',
@@ -187,5 +189,23 @@ class SolutionDeviceIntegrator
             'sync_requested_at' => now(),
             'sync_message' => $message,
         ])->save();
+    }
+
+    private function resolveFingerprintId(string $devicePin): string
+    {
+        $candidates = [$devicePin];
+
+        if (ctype_digit($devicePin)) {
+            $trimmed = ltrim($devicePin, '0') ?: '0';
+
+            $candidates[] = $trimmed;
+            $candidates[] = str_pad($trimmed, 6, '0', STR_PAD_LEFT);
+        }
+
+        $candidates = array_values(array_unique($candidates));
+
+        return BiometricEnrollment::query()
+            ->whereIn('fingerprint_id', $candidates)
+            ->value('fingerprint_id') ?? $devicePin;
     }
 }
