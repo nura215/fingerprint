@@ -6,6 +6,7 @@ use App\Models\AcademicYear;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AcademicYearController extends BaseCrudController
@@ -21,8 +22,8 @@ class AcademicYearController extends BaseCrudController
     protected ?string $filterColumn = 'is_active';
 
     protected array $filterOptions = [
-        '1' => 'Active',
-        '0' => 'Inactive',
+        '1' => 'Aktif',
+        '0' => 'Tidak Aktif',
     ];
 
     protected ?string $badgeColumn = 'is_active';
@@ -34,12 +35,16 @@ class AcademicYearController extends BaseCrudController
     protected array $columns = [
         ['label' => 'Tahun', 'key' => 'year'],
         ['label' => 'Semester', 'key' => 'semester'],
+        ['label' => 'Tanggal Mulai', 'key' => 'start_date', 'type' => 'date'],
+        ['label' => 'Tanggal Selesai', 'key' => 'end_date', 'type' => 'date'],
         ['label' => 'Status', 'key' => 'is_active', 'badge' => true],
     ];
 
     protected array $detailFields = [
         ['label' => 'Tahun', 'key' => 'year'],
         ['label' => 'Semester', 'key' => 'semester'],
+        ['label' => 'Tanggal Mulai', 'key' => 'start_date', 'type' => 'date'],
+        ['label' => 'Tanggal Selesai', 'key' => 'end_date', 'type' => 'date'],
         ['label' => 'Status', 'key' => 'is_active', 'badge' => true],
     ];
 
@@ -76,14 +81,24 @@ class AcademicYearController extends BaseCrudController
     protected array $formFields = [
         ['name' => 'year', 'label' => 'Tahun Akademik', 'type' => 'text', 'required' => true, 'placeholder' => '2026/2027'],
         ['name' => 'semester', 'label' => 'Semester', 'type' => 'select', 'required' => true, 'options' => ['ganjil' => 'Ganjil', 'genap' => 'Genap']],
-        ['name' => 'is_active', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => ['1' => 'Active', '0' => 'Inactive']],
+        ['name' => 'start_date', 'label' => 'Tanggal Mulai', 'type' => 'date', 'required' => true],
+        ['name' => 'end_date', 'label' => 'Tanggal Selesai', 'type' => 'date', 'required' => true],
+        ['name' => 'is_active', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => ['1' => 'Aktif', '0' => 'Tidak Aktif']],
     ];
 
     protected function rules(?Model $item = null): array
     {
         return [
             'year' => ['required', 'string', 'max:20'],
-            'semester' => ['required', 'in:ganjil,genap'],
+            'semester' => [
+                'required',
+                'in:ganjil,genap',
+                Rule::unique('academic_years', 'semester')
+                    ->where(fn ($query) => $query->where('year', request('year')))
+                    ->ignore($item?->getKey()),
+            ],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'is_active' => ['required', 'boolean'],
         ];
     }

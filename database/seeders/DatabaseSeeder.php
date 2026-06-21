@@ -46,6 +46,8 @@ class DatabaseSeeder extends Seeder
             'year' => '2026/2027',
             'semester' => 'ganjil',
         ], [
+            'start_date' => '2026-09-01',
+            'end_date' => '2027-01-15',
             'is_active' => true,
         ]);
 

@@ -10,8 +10,8 @@
     };
 
     $label = match ($normalized) {
-        '1', 'active' => 'Active',
-        '0', 'inactive' => 'Inactive',
+        '1', 'active' => 'Aktif',
+        '0', 'inactive' => 'Tidak Aktif',
         'online' => 'Online',
         'offline' => 'Offline',
         'maintenance' => 'Maintenance',

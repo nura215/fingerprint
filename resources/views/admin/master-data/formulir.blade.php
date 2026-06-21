@@ -21,6 +21,9 @@
                         if ($rawValue instanceof \Illuminate\Support\Carbon && $fieldType === 'datetime-local') {
                             $value = $rawValue->format('Y-m-d\TH:i');
                         }
+                        if ($rawValue instanceof \Illuminate\Support\Carbon && $fieldType === 'date') {
+                            $value = $rawValue->format('Y-m-d');
+                        }
                         if (is_string($value) && $fieldType === 'time') {
                             $value = substr($value, 0, 5);
                         }
@@ -89,4 +92,3 @@
         </form>
     </div>
 </x-app-layout>
-

@@ -95,6 +95,7 @@ class ScheduleController extends BaseCrudController
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge(['status' => 'active']);
         $validated = $this->validatedSchedule($request);
         $item = $this->modelClass::create($this->prepareData($validated, true));
         AuditLogger::log('create', $item, null, $item->fresh()?->toArray());
@@ -166,7 +167,7 @@ class ScheduleController extends BaseCrudController
                 ->exists();
 
             if ($exists) {
-                $validator->errors()->add('start_time', 'Schedule bentrok dengan schedules aktif lain pada rooms dan hari yang sama.');
+                $validator->errors()->add('start_time', 'Jadwal bentrok dengan jadwal aktif lain pada ruangan dan hari yang sama.');
             }
         });
 

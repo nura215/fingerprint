@@ -24,6 +24,9 @@
                         if (($field['type'] ?? null) === 'datetime' && $value) {
                             $value = $value->format('d M Y H:i');
                         }
+                        if (($field['type'] ?? null) === 'date' && $value) {
+                            $value = $value->format('d/m/Y');
+                        }
                     @endphp
                     <div class="grid gap-1 px-5 py-4 sm:grid-cols-3 sm:gap-4">
                         <dt class="text-sm font-bold text-slate-500">{{ $field['label'] }}</dt>

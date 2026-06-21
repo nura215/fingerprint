@@ -2,7 +2,7 @@
     <div class="space-y-5">
         <div>
             <h1 class="text-2xl font-extrabold tracking-normal text-slate-950">Data Tahun Akademik</h1>
-            <p class="mt-1 text-sm font-medium text-slate-500">Kelola tahun akademik, semester, dan status aktif sistem.</p>
+            <p class="mt-1 text-sm font-medium text-slate-500">Kelola tahun akademik, semester, rentang tanggal, dan status aktif sistem.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -43,6 +43,7 @@
                     <thead class="bg-slate-50"><tr>
                         <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Tahun</th>
                         <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Semester</th>
+                        <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Periode</th>
                         <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Kelas</th>
                         <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Jadwal</th>
                         <th class="px-5 py-4 text-left text-xs font-extrabold uppercase tracking-wide text-slate-500">Status</th>
@@ -53,13 +54,20 @@
                             <tr class="transition hover:bg-slate-50/70">
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-extrabold text-emerald-700">{{ $item->year }}</td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-800">{{ ucfirst($item->semester) }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-sm font-semibold text-slate-600">
+                                    @if ($item->start_date && $item->end_date)
+                                        {{ $item->start_date->format('d/m/Y') }} - {{ $item->end_date->format('d/m/Y') }}
+                                    @else
+                                        <span class="text-slate-400">Belum diatur</span>
+                                    @endif
+                                </td>
                                 <td class="whitespace-nowrap px-5 py-4"><span class="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">{{ $item->classes_count }}</span></td>
                                 <td class="whitespace-nowrap px-5 py-4"><span class="inline-flex rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">{{ $item->schedules_count }}</span></td>
                                 <td class="whitespace-nowrap px-5 py-4">@include('admin.partials.lencana', ['value' => $item->is_active])</td>
                                 <td class="whitespace-nowrap px-5 py-4">@include('admin.partials.table-actions', ['routePrefix' => $routePrefix, 'item' => $item, 'deleteLabel' => 'tahun akademik'])</td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-5 py-12 text-center text-sm font-medium text-slate-500">Data tahun akademik belum tersedia.</td></tr>
+                            <tr><td colspan="7" class="px-5 py-12 text-center text-sm font-medium text-slate-500">Data tahun akademik belum tersedia.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
